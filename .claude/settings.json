@@ -1,0 +1,47 @@
+{
+    "permissions": {
+        "allow": [
+            "Bash(npm *)",
+            "Bash(git *)",
+            "Bash(npx *)",
+            "Bash(vercel *)",
+            "Bash(gh *)",
+            "Bash(node scripts/*)"
+        ]
+    },
+    "hooks": {
+        "PreToolUse": [
+            {
+                "matcher": "Bash(git push*)",
+                "hooks": [{
+                "type": "command",
+                "command": "cd \"$CLAUDE_PROJECT_DIR\" && npm run test:unit -- --run 2>&1; if [ $? -ne 0 ]; then echo 'BLOCKED: unit tests failed.' >&2; exit 2; fi"
+                }]
+            },
+            {
+                "matcher": "Write",
+                "hooks": [{
+                "type": "command",
+                "command": "echo \"[$(date '+%Y-%m-%d %H:%M:%S')] WRITE: $CLAUDE_TOOL_INPUT_FILE_PATH\" >> \"$CLAUDE_PROJECT_DIR/.claude/activity.log\""
+                }]
+            }
+        ],
+        "PostToolUse": [
+            {
+                "matcher": "Bash(vercel --prod*)",
+                "hooks": [{
+                "type": "command",
+                "command": "cd \"$CLAUDE_PROJECT_DIR\" && TAG=$(git tag --sort=-version:refname | head -1) && PREV=$(git tag --sort=-version:refname | sed -n '2p') && echo \"## Release $TAG\" > /tmp/rn.md && git log $PREV..$TAG --oneline --no-merges >> /tmp/rn.md && gh release create $TAG --notes-file /tmp/rn.md --title \"Release $TAG\""
+                }]
+            }
+        ],
+        "Stop": [
+            {
+                "hooks": [{
+                "type": "command",
+                "command": "printf '\\a' && echo '[Claude Code] Task complete.'"
+                }]
+            }
+        ]
+    }
+}

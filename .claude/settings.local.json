@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import json,sys; data=json.load\\(sys.stdin\\); boards=json.loads\\(data[0]['text']\\); [print\\(b['id'], b['name'], b.get\\('closed'\\)\\) for b in boards]\")",
+      "mcp__trello__add_card_to_list",
+      "Bash(cat \"C:/Users/danko.pirgan/OneDrive - Scale Focus AD/Desktop/BASF/PAI/VC/Real-Estate-App/.github/workflows/\"*.yml)"
+    ]
+  }
+}
