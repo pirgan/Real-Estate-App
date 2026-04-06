@@ -74,22 +74,21 @@ describe('authController', () => {
       User.findOne.mockResolvedValue({ _id: 'existing' }); // email taken
 
       const res = makeRes();
-      await register({ body: { email: 'taken@test.com', password: 'x' } }, res);
+      await register({ body: { name: 'Taken', email: 'taken@test.com', password: 'x' } }, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ message: 'Email already registered' });
       expect(User.create).not.toHaveBeenCalled();
     });
 
-    it('propagates validation error when required fields are missing', async () => {
-      User.findOne.mockResolvedValue(null);
-      const err = Object.assign(new Error('Path `name` is required.'), { name: 'ValidationError' });
-      User.create.mockRejectedValue(err);
+    it('400 when required fields are missing', async () => {
+      // Controller validates required fields before hitting the DB.
+      const res = makeRes();
+      await register({ body: { email: 'x@test.com' } }, res);
 
-      // Express 5 propagates async errors to the global error handler.
-      // Calling the controller directly lets us assert it throws.
-      await expect(register({ body: { email: 'x@test.com' } }, makeRes()))
-        .rejects.toThrow('Path `name` is required.');
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ message: 'Name, email and password are required' });
+      expect(User.findOne).not.toHaveBeenCalled();
     });
 
     it('calls jwt.sign with the new user _id in the payload', async () => {
@@ -129,7 +128,8 @@ describe('authController', () => {
         email: 'alice@test.com',
         matchPassword: vi.fn().mockResolvedValue(true),
       };
-      User.findOne.mockResolvedValue(fakeUser);
+      // login calls findOne({ email }).select('+password') — must be chainable
+      User.findOne.mockReturnValue({ select: vi.fn().mockResolvedValue(fakeUser) });
 
       const res = makeRes();
       await login({ body: { email: 'alice@test.com', password: 'correct' } }, res);
@@ -141,9 +141,11 @@ describe('authController', () => {
     });
 
     it('401 on wrong password', async () => {
-      User.findOne.mockResolvedValue({
-        _id: 'uid1',
-        matchPassword: vi.fn().mockResolvedValue(false),
+      User.findOne.mockReturnValue({
+        select: vi.fn().mockResolvedValue({
+          _id: 'uid1',
+          matchPassword: vi.fn().mockResolvedValue(false),
+        }),
       });
 
       const res = makeRes();
@@ -156,7 +158,7 @@ describe('authController', () => {
     it('401 on unknown email', async () => {
       // Controller treats "user not found" and "wrong password" identically (both 401)
       // to avoid user-enumeration attacks.
-      User.findOne.mockResolvedValue(null);
+      User.findOne.mockReturnValue({ select: vi.fn().mockResolvedValue(null) });
 
       const res = makeRes();
       await login({ body: { email: 'ghost@test.com', password: 'pass' } }, res);

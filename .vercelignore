@@ -1,0 +1,6 @@
+server/node_modules
+client/node_modules
+server/tests
+server/.env
+**/*.test.js
+**/*.spec.js
